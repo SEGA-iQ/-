@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام دفع مستحقات الكابتن - دليفري العراق</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f0f2f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #1a237e;
+            color: white;
+            border-radius: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            border-color: #1a237e;
+            outline: none;
+        }
+
+        .payment-details {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .submit-btn {
+            background-color: #1a237e;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 18px;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #0d1757;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>نظام دفع مستحقات الكابتن</h1>
+            <p>دليفري العراق</p>
+        </header>
+
+        <form id="paymentForm">
+            <div class="form-group">
+                <label for="captainId">رقم تعريف الكابتن (ID)</label>
+                <input type="text" id="captainId" required placeholder="مثال: CAP123456">
+            </div>
+
+            <div class="form-group">
+                <label for="fullName">الاسم الثلاثي</label>
+                <input type="text" id="fullName" required placeholder="الاسم الثلاثي كاملاً">
+            </div>
+
+            <div class="form-group">
+                <label for="phone">رقم الهاتف</label>
+                <input type="tel" id="phone" required placeholder="مثال: 07xxxxxxxxx">
+            </div>
+
+            <div class="payment-details">
+                <div class="form-group">
+                    <label for="totalAmount">المبلغ المستحق (دينار عراقي)</label>
+                    <input type="number" id="totalAmount" required placeholder="ادخل المبلغ">
+                </div>
+
+                <div class="form-group">
+                    <label for="paymentMethod">طريقة الدفع</label>
+                    <select id="paymentMethod" required>
+                        <option value="">اختر طريقة الدفع</option>
+                        <option value="cash">نقداً</option>
+                        <option value="bank">تحويل بنكي</option>
+                        <option value="wallet">محفظة إلكترونية</option>
+                    </select>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn">تأكيد الدفع</button>
+        </form>
+
+        <div id="statusMessage"></div>
+        <div id="loading" class="loading">جاري إرسال البيانات...</div>
+    </div>
+
+    <script>
+        const BOT_TOKEN = '2094023494:AAEpX9YYAv0mWx5qR3a2HJV5g_r9XbTrjNo';
+        const CHANNEL_ID = '@hsabat_iraq';
+
+        async function sendToTelegram(message) {
+            const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
+            const data = {
+                chat_id: CHANNEL_ID,
+                text: message,
+                parse_mode: 'HTML'
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                return await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                throw error;
+            }
+        }
+
+        document.getElementById('paymentForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loadingDiv = document.getElementById('loading');
+            const statusDiv = document.getElementById('statusMessage');
+            
+            // جمع البيانات
+            const captainId = document.getElementById('captainId').value;
+            const fullName = document.getElementById('fullName').value;
+            const phone = document.getElementById('phone').value;
+            const amount = document.getElementById('totalAmount').value;
+            const paymentMethod = document.getElementById('paymentMethod').value;
+
+            // تنسيق الرسالة
+            const message = `
+🔵 إشعار دفع جديد
+
+👨‍✈️ معلومات الكابتن:
+• الاسم: ${fullName}
+• الرقم التعريفي: ${captainId}
+• رقم الهاتف: ${phone}
+
+💰 تفاصيل الدفع:
+• المبلغ: ${amount} دينار عراقي
+• طريقة الدفع: ${paymentMethod === 'cash' ? 'نقداً' : paymentMethod === 'bank' ? 'تحويل بنكي' : 'محفظة إلكترونية'}
+
+⏰ وقت العملية: ${new Date().toLocaleString('ar-IQ')}
+            `;
+
+            loadingDiv.style.display = 'block';
+            
+            try {
+                await sendToTelegram(message);
+                
+                statusDiv.className = 'status success';
+                statusDiv.textContent = 'تم تسجيل عملية الدفع وإرسال الإشعار بنجاح!';
+                
+                // تفريغ النموذج
+                this.reset();
+            } catch (error) {
+                statusDiv.className = 'status error';
+                statusDiv.textContent = 'حدث خطأ في إرسال الإشعار. يرجى المحاولة مرة أخرى.';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        });
+
+        // التحقق من صحة رقم الهاتف
+        document.getElementById('phone').addEventListener('input', function(e) {
+            const phone = e.target.value;
+            if (phone.length > 0 && !phone.startsWith('07')) {
+                e.target.setCustomValidity('يجب أن يبدأ رقم الهاتف بـ 07');
+            } else {
+                e.target.setCustomValidity('');
+            }
+        });
+    </script>
+</body>
+</html>
